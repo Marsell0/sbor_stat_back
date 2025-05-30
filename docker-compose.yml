@@ -1,0 +1,45 @@
+
+services:
+  db:
+    image: postgres:14
+    environment:
+      POSTGRES_DB: sbor_stat
+      POSTGRES_USER: ss_admin
+      POSTGRES_PASSWORD: qwe123rty123
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python sbor_stat/manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - SECRET_KEY=django-insecure-ufa^a119bt$30ueul+d(vl(i^v*$x4)-h13i009h+_3@u6mi&w
+      - ALLOWED_HOSTS=localhost 127.0.0.1
+      - DATABASE_URL=postgres://ss_admin:qwe123rty123@db:5432/sbor_stat
+    depends_on:
+      - db
+
+    frontend:
+      build:
+        context: ./DIP_FRONT
+        dockerfile: Dockerfile.frontend
+      ports:
+        - "5173:5173"
+      volumes:
+        - ./DIP_FRONT:/app
+      stdin_open: true
+      tty: true
+      depends_on:
+        - backend
+
+volumes:
+  postgres_data:

@@ -12,6 +12,8 @@ from rest_framework import status
 import io
 import openpyxl
 from django.http import HttpResponse
+from datetime import date, timedelta
+from dateutil.relativedelta import relativedelta
 
 # функции админа
 @api_view(['GET'])
@@ -109,19 +111,40 @@ class ReportsByPCKView(APIView):
     
 @api_view(['POST'])
 def create_report(request):
-    # if request.user.role != 'teacher':
-    #     return Response({'detail': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
-    print(f"Преподаватель  {User.objects.get(id=4)}")
     try:
         
-        
-        teacher = User.objects.get(id=4, role='teacher')
-    except:
-        return Response({'detail': 'Преподаватель не найден'}, status=status.HTTP_404_NOT_FOUND)
+        user = User.objects.get(username=request.data.get('username'))
+    except User.DoesNotExist:
+        return Response({'error': 'Пользователь не найден'}, status=404)
 
     serializer = ReportSerializer(data=request.data)
     if serializer.is_valid():
-        serializer.save(user=teacher)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-    
-    return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save(user=user)
+        return Response(serializer.data, status=201)
+    return Response(serializer.errors, status=400)
+
+
+@api_view(['POST'])
+def user_reports(request):
+    username = request.data.get('username')
+    if not username:
+        return Response({'error': 'Имя пользователя не указано'}, status=400)
+
+    try:
+        user = User.objects.get(username=username)
+    except User.DoesNotExist:
+        return Response({'error': 'Пользователь не найден'}, status=404)
+
+    today = date.today()
+    start_range = (today - relativedelta(months=1)).replace(day=20)
+    end_range = today.replace(day=20)
+
+    reports = Report.objects.filter(user=user)
+    serialized = ReportSerializer(reports, many=True)
+
+    # помечаем, какие можно редактировать
+    for r in serialized.data:
+        r_date = next((rep.date for rep in reports if rep.id == r['id']), None)
+        r['editable'] = start_range <= r_date <= end_range
+
+    return Response(serialized.data)

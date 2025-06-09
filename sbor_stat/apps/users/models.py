@@ -50,6 +50,5 @@ class User(AbstractUser):
         help_text='Принадлежность пользователя к ПЦК'
     )
 
-    # Убираем username help_text, отображаемю строку
     def __str__(self):
         return f"{self.username} ({self.get_role_display()})"
